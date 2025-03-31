@@ -29,7 +29,7 @@ DEFAULT_JIRA_PROJECTS = [
     "OSPCIX",
     "RHOSBUGS",
     "OSPK8",
-    "RHOSPPRIO",
+    "RHOSPRIO",
     "OSPRH",
 ]
 
@@ -80,8 +80,9 @@ def update_database(
     }
     results = []
 
-    projects = "&OR&".join([f"project={e}" for e in jira_projects])
-    query = f"{projects}&AND&type=bug&AND&status=Closed"
+    projects = " OR ".join([f"project={e}" for e in jira_projects])
+    query = f"{projects} AND type=bug AND status=Closed"
+    query = requests.utils.quote(query)
     # Get initial batch of data
     try:
         response = requests.get(
