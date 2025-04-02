@@ -13,8 +13,11 @@ from tqdm import tqdm
 from langchain.text_splitter import (
     RecursiveCharacterTextSplitter,
 )
+from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+
 from transformers import AutoTokenizer
-from openai import OpenAI
+from openai import APIConnectionError
 from qdrant_client import QdrantClient, models
 
 
@@ -72,6 +75,18 @@ def update_database(
     jira_database_bkp_path: str = "jira_all_bugs.pickle",
     jira_projects: list = DEFAULT_JIRA_PROJECTS,
 ):
+    if llm_server_url:
+        model = OpenAIEmbeddings(
+            model=embedding_model,
+            base_url=llm_server_url,
+            api_key=llm_api_key)
+        try:
+            model.embed_query("Hello world")
+        except APIConnectionError as e:
+            print(f"Connection error: {e} occured when calling model {embedding_model} at {llm_server_url}")
+            exit(1)
+    else:
+        model = HuggingFaceEmbeddings(model_name=embedding_model)
 
     headers = {
         "Content-Type": "application/json",
@@ -101,6 +116,7 @@ def update_database(
         raise ValueError
 
     total = data["total"]
+
     print(f"{total} items found for query {query}")
 
     # Retrieve results going further back
@@ -134,12 +150,6 @@ def update_database(
 
     print(df.info())
 
-    llm = OpenAI(
-        base_url=llm_server_url,
-        organization="",
-        api_key=llm_api_key,
-    )
-
     # Back up data
     df.to_pickle(jira_database_bkp_path)
 
@@ -149,22 +159,19 @@ def update_database(
     tokenizer = AutoTokenizer.from_pretrained(embedding_model)
 
     splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
-        tokenizer, chunk_size=chunk_size, chunk_overlap=0
+        tokenizer, chunk_size=chunk_size, chunk_overlap=20
     )
 
     client.recreate_collection(
         collection_name=COLLECTION_NAME,
         vectors_config=models.VectorParams(size=1024, distance=models.Distance.COSINE),
+        timeout=200
     )
 
     for _, row in tqdm(df.iterrows()):
         chunks = splitter.split_text(row["text"])
         for _, chunk in enumerate(chunks):
-            embedding = (
-                llm.embeddings.create(model=embedding_model, input=chunk)
-                .data[0]
-                .embedding
-            )
+            embedding = model.embed_query(chunk)
             client.upsert(
                 collection_name=COLLECTION_NAME,
                 points=[
