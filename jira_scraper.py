@@ -62,6 +62,16 @@ def get_jira_data(
     return data["issues"]
 
 
+def insert_row(data: str, record_id: str, record_key: str, jira_url: str, field: str, dataset: pd.DataFrame):
+    """Insert row into dataset, keep information about source field and URL."""
+    row = {}
+    row["id"] = record_id
+    row["url"] = f"{jira_url}/browse/{record_key}"
+    row["text"] = data
+    row["kind"] = field
+    dataset.append(row)
+
+
 def update_database(
     database_client_url: str,
     llm_server_url: str,
@@ -133,20 +143,33 @@ def update_database(
     dataset = []
 
     for raw_result in tqdm(results):
-        row = {}
-        row["id"] = raw_result["id"]
-        row["url"] = f"{jira_url}/browse/{raw_result['key']}"
-        row["summary"] = raw_result["fields"]["summary"]
-        row["description"] = raw_result["fields"]["description"]
-        row["comments"] = "\n".join(
-            [comment["body"] for comment in raw_result["fields"]["comment"]["comments"]])
-        dataset.append(row)
+
+        # Summaries and descriptions
+        for text_field in ["summary", "description"]:
+            insert_row(
+                raw_result["fields"][text_field],
+                raw_result["id"],
+                raw_result["key"],
+                jira_url,
+                text_field,
+                dataset)
+        # Inserting comments
+        for comment in raw_result["fields"]["comment"]["comments"]:
+            insert_row(
+                comment["body"],
+                raw_result["id"],
+                raw_result["key"],
+                jira_url,
+                "comment",
+                dataset)
 
     df = pd.DataFrame(dataset)
-    df["text"] = df.summary + "\n" + df.description.fillna(" ") + df.comments
 
     # Remove duplicates
-    df = df.drop_duplicates(subset=["id"])
+    df = df.drop_duplicates(subset=["id", "kind"])
+
+    # Remove rows with missing values
+    df = df.dropna()
 
     print(df.info())
 
@@ -177,7 +200,11 @@ def update_database(
                 points=[
                     models.PointStruct(
                         id=str(uuid.uuid4()),
-                        payload={"url": row["url"], "text": row["text"]},
+                        payload={
+                            "url": row["url"],
+                            "text": row["text"],
+                            "kind": row["kind"],
+                            },
                         vector=embedding,
                     ),
                 ],
