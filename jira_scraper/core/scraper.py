@@ -2,6 +2,7 @@
 """Jira Scraper"""
 import uuid
 import multiprocessing as mp
+from datetime import datetime, timedelta
 from typing import List, Dict
 
 import pandas as pd
@@ -50,9 +51,21 @@ class JiraScraper:
         dataset.append(row)
 
     def build_query(self, projects: List[str]) -> str:
-        """Build JQL query from project list."""
+        """Build JQL query from project dictionary.
+
+        Args:
+            projects_list: List of project names.
+
+        Returns:
+            JQL query string with appropriate filters
+        """
         projects_str = " OR ".join([f"project={e}" for e in projects])
-        return f"{projects_str} AND type=bug AND status=Closed"
+
+        # 2 years ago from now
+        two_years_ago = datetime.now() - timedelta(days=365*2)
+        date_filter = f'created >= "{two_years_ago.strftime("%Y-%m-%d")}"'
+
+        return f"({projects_str}) AND {date_filter}"
 
     def fetch_all_issues(self, query: str, max_results: int) -> List[Dict]:
         """Fetch all issues matching the query."""
@@ -168,3 +181,4 @@ class JiraScraper:
         stats = self.db_manager.get_collection_stats(
             self.config["db_collection_name"])
         print(f"Number of records: {stats.points_count}")
+
