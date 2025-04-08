@@ -120,7 +120,7 @@ class JiraScraper:
         vector_size = self.get_embedding_dimension()
 
         self.db_manager.recreate_collection(
-            constants.COLLECTION_NAME,
+            self.config["db_collection_name"],
             vector_size
         )
 
@@ -143,7 +143,7 @@ class JiraScraper:
                 )
 
                 self.db_manager.upsert_data(
-                    constants.COLLECTION_NAME,
+                    self.config["db_collection_name"],
                     [point]
                 )
 
@@ -167,5 +167,5 @@ class JiraScraper:
 
         # Print final stats
         stats = self.db_manager.get_collection_stats(
-            constants.COLLECTION_NAME)
+            self.config["db_collection_name"])
         print(f"Number of records: {stats.points_count}")

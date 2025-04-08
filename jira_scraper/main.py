@@ -27,6 +27,9 @@ def command():
                         default=constants.DEFAULT_EMBEDDING_MODEL)
     parser.add_argument("--jira_projects", nargs='+', type=str,
                         default=constants.DEFAULT_JIRA_PROJECTS)
+    parser.add_argument("--db_collection_name", type=str,
+                        default=constants.COLLECTION_NAME)
+
 
     args = parser.parse_args()
 
@@ -41,6 +44,7 @@ def command():
         "chunk_size": args.chunk_size,
         "embedding_model": args.embedding_model,
         "jira_projects": args.jira_projects,
+        "db_collection_name": args.db_collection_name,
     }
 
     scraper = JiraScraper(config_args)

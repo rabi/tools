@@ -33,8 +33,3 @@ class TextProcessor(ContentProcessor):
         return self.splitter.split_text(text)
 
 
-class LogProcessor(ContentProcessor):
-    """Handles log processing."""
-
-
-
