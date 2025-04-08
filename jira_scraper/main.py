@@ -30,7 +30,6 @@ def command():
     parser.add_argument("--db_collection_name", type=str,
                         default=constants.COLLECTION_NAME)
 
-
     args = parser.parse_args()
 
     config_args = {

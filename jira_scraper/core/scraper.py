@@ -8,7 +8,6 @@ import pandas as pd
 from tqdm import tqdm
 from openai import OpenAI
 
-from jira_scraper.common import constants
 from jira_scraper.processors.jira_provider import JiraProvider
 from jira_scraper.processors.vector_store import QdrantVectorStoreManager
 from jira_scraper.processors.text_processor import TextProcessor

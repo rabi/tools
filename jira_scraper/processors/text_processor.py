@@ -31,5 +31,3 @@ class TextProcessor(ContentProcessor):
     def split_text(self, text: str) -> List[str]:
         """Split text into chunks."""
         return self.splitter.split_text(text)
-
-
