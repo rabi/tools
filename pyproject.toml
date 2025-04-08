@@ -8,9 +8,7 @@ dependencies = [
     "qdrant-client==1.13.3",
     "transformers==4.50.3",
     "pandas==2.2.3",
-    "langchain==0.3.22",
-    "langchain-openai>=0.3.11",
-    "langchain-huggingface>=0.1.2",
+    "langchain-text-splitters>=0.3.8",
 ]
 requires-python = "==3.12.*"
 
