@@ -1,0 +1,14 @@
+name: Run tox
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  run_tox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.5.0
+      - name: Install tox
+        run: pip install tox
+      - name: Run tox
+        run: make tox

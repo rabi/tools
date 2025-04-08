@@ -8,7 +8,6 @@ import pandas as pd
 from tqdm import tqdm
 from openai import OpenAI
 
-from jira_scraper.common import constants
 from jira_scraper.processors.jira_provider import JiraProvider
 from jira_scraper.processors.vector_store import QdrantVectorStoreManager
 from jira_scraper.processors.text_processor import TextProcessor
@@ -120,7 +119,7 @@ class JiraScraper:
         vector_size = self.get_embedding_dimension()
 
         self.db_manager.recreate_collection(
-            constants.COLLECTION_NAME,
+            self.config["db_collection_name"],
             vector_size
         )
 
@@ -143,7 +142,7 @@ class JiraScraper:
                 )
 
                 self.db_manager.upsert_data(
-                    constants.COLLECTION_NAME,
+                    self.config["db_collection_name"],
                     [point]
                 )
 
@@ -167,5 +166,5 @@ class JiraScraper:
 
         # Print final stats
         stats = self.db_manager.get_collection_stats(
-            constants.COLLECTION_NAME)
+            self.config["db_collection_name"])
         print(f"Number of records: {stats.points_count}")
