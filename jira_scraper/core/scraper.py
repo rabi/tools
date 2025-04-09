@@ -37,15 +37,15 @@ class JiraScraper:
 
     # pylint: disable=too-many-arguments
     def insert_row(self, data: str, record_id: str,
-                   record_key: str, jira_url: str,
-                   field: str, dataset: pd.DataFrame):
+                   jira_url: str, field: str,
+                   dataset: pd.DataFrame):
         """
         Insert row into dataset, keep information
         about source field and URL.
         """
         row = {}
         row["id"] = record_id
-        row["url"] = f"{jira_url}/browse/{record_key}"
+        row["url"] = jira_url
         row["text"] = data
         row["kind"] = field
         dataset.append(row)
@@ -101,19 +101,21 @@ class JiraScraper:
                 self.insert_row(
                     issue["fields"][text_field],
                     issue["id"],
-                    issue["key"],
                     jira_url,
                     text_field,
                     dataset)
 
+            # Concatenate all comments for a jira
+            comment_text = ""
             for comment in issue["fields"]["comment"]["comments"]:
-                self.insert_row(
-                    comment["body"],
-                    issue["id"],
-                    issue["key"],
-                    jira_url,
-                    "comment",
-                    dataset)
+                comment_text += f"\n\n{comment['body']}"
+
+            self.insert_row(
+                comment_text,
+                issue["id"],
+                jira_url,
+                "comment",
+                dataset)
 
         df = pd.DataFrame(dataset)
         df = df.dropna()
