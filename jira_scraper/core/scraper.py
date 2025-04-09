@@ -3,7 +3,7 @@
 import uuid
 import multiprocessing as mp
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, TypedDict
 
 import pandas as pd
 from tqdm import tqdm
@@ -13,6 +13,36 @@ from jira_scraper.processors.jira_provider import JiraProvider
 from jira_scraper.processors.vector_store import QdrantVectorStoreManager
 from jira_scraper.processors.text_processor import TextProcessor
 
+
+class JiraRecord(TypedDict, total=False):
+    """Represents a record extracted from a Jira ticket.
+
+    This dictionary contains information from a single Jira ticket field.
+    It can be used to store details about fields such as comments,
+    descriptions, and other.
+
+    Attributes:
+        text: The content extracted from a specific field (e.g., summary,
+            description, comment).
+        id: A unique identifier assigned to the ticket (e.g., 16238715).
+        key: The ticket's key, combining the project name and ticket number
+            (e.g., OSPRH-1234).
+        url: The URL pointing directly to the Jira ticket
+            (e.g., http://issues.redhat.com/OSPRH-1234).
+        kind: Specifies the type of field the data originates from (e.g.,
+            summary, description, comment).
+        components: A list of components impacted by the ticket.
+        fix_versions: A value from Fix Versions
+        affects_versions: A value from Affects Versions
+    """
+    kind: str
+    text: str
+    id: str
+    key: str
+    url: str
+    fix_versions: list[str]
+    affects_versions: list[str]
+    components: list[str]
 
 class JiraScraper:
     """Main class for JIRA scraping and processing."""
@@ -34,21 +64,6 @@ class JiraScraper:
             organization="",
             api_key=config["llm_api_key"],
         )
-
-    # pylint: disable=too-many-arguments
-    def insert_row(self, data: str, record_id: str,
-                   jira_url: str, field: str,
-                   dataset: pd.DataFrame):
-        """
-        Insert row into dataset, keep information
-        about source field and URL.
-        """
-        row = {}
-        row["id"] = record_id
-        row["url"] = jira_url
-        row["text"] = data
-        row["kind"] = field
-        dataset.append(row)
 
     def build_query(self, projects: List[str]) -> str:
         """Build JQL query from project dictionary.
@@ -90,34 +105,57 @@ class JiraScraper:
             issue for batch in results for issue in batch]
         return all_issues
 
-    def process_issues_to_dataframe(self, issues: List[Dict]) -> pd.DataFrame:
-        """Convert JIRA issues to pandas DataFrame."""
-        dataset = []
+    def get_jira_records(self, issues: List[Dict]) -> pd.DataFrame:
+        """Convert Jira API responses to JiraRecords"""
+        jira_records: list[JiraRecord] = []
 
         for issue in tqdm(issues, desc="Processing issues"):
-
             jira_url = f"{self.config['jira_url']}/browse/{issue['key']}"
-            for text_field in ["summary", "description"]:
-                self.insert_row(
-                    issue["fields"][text_field],
-                    issue["id"],
-                    jira_url,
-                    text_field,
-                    dataset)
+
+            components = [
+                component["name"]
+                for component in issue["fields"]["components"]
+            ]
+
+            fix_versions = [
+                fixVersion["name"]
+                for fixVersion in issue["fields"]["fixVersions"]
+            ]
+
+            versions = [
+                version["name"]
+                for version in issue["fields"]["versions"]
+            ]
+
+            for text_field_name in ["summary", "description"]:
+                jira_records.append({
+                    "text": issue["fields"][text_field_name],
+                    "id": issue["id"],
+                    "affects_versions": versions,
+                    "components": components,
+                    "kind": text_field_name,
+                    "fix_versions": fix_versions,
+                    "url": jira_url,
+                    "key": issue["key"],
+                })
 
             # Concatenate all comments for a jira
             comment_text = ""
             for comment in issue["fields"]["comment"]["comments"]:
                 comment_text += f"\n\n{comment['body']}"
 
-            self.insert_row(
-                comment_text,
-                issue["id"],
-                jira_url,
-                "comment",
-                dataset)
+            jira_records.append({
+                "text": comment_text,
+                "id": issue["id"],
+                "affects_versions": versions,
+                "components": components,
+                "kind": "comment",
+                "fix_versions": fix_versions,
+                "url": jira_url,
+                "key": issue["key"],
+            })
 
-        df = pd.DataFrame(dataset)
+        df = pd.DataFrame(jira_records)
         df = df.dropna()
         return df.drop_duplicates(subset=["text"])
 
@@ -170,7 +208,7 @@ class JiraScraper:
             print("No issues found to process.")
             return
 
-        df = self.process_issues_to_dataframe(issues)
+        df = self.get_jira_records(issues)
         print(df.info())
 
         # Save backup
