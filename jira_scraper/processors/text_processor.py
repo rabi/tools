@@ -2,7 +2,7 @@
 """Text Processor to split text in chunks"""
 import abc
 from typing import List
-from langchain.text_splitter import RecursiveCharacterTextSplitter as rct
+from langchain_text_splitters import RecursiveCharacterTextSplitter as rct
 from transformers import AutoTokenizer
 
 
