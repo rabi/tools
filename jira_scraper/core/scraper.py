@@ -181,4 +181,3 @@ class JiraScraper:
         stats = self.db_manager.get_collection_stats(
             self.config["db_collection_name"])
         print(f"Number of records: {stats.points_count}")
-
