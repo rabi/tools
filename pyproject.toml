@@ -31,7 +31,8 @@ py-modules = []
 
 [project.scripts]
 jira_scraper = "jira_scraper.main:command"
+feedback_exporter = "feedback_exporter.export_feedback:main"
 
 [tool.setuptools.packages.find]
-include = ["jira_scraper*"]
+include = ["jira_scraper*", "feedback_exporter*"]
 namespaces = false
