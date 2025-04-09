@@ -6,6 +6,7 @@ this repository contains:
 
 - `jira_scraper`: a tool that scrapes jira issues and stores the collected data
 in a vector database.
+- `feedback_exporter`: a tool to fetch user feedback from Chainlit DB and write it in to a Google Spreadsheet.
 
 
 ## Getting Started
@@ -15,3 +16,26 @@ in a vector database.
    pip install .
    jira_scraper --help
    ```
+
+## Feedback Exporter Tool
+
+This tool fetches user feedback from the Chainlit PostgreSQL database and writes it into a Google Spreadsheet.
+
+### Usage
+
+1. Set the following environment variables:
+
+```bash
+export DATABASE_URL=postgresql://user:pass@host:port/dbname
+export APP_BASE_URL=https://chainlit.example.com/thread/
+export GOOGLE_SPREADSHEET_ID=your_google_sheet_id
+export GOOGLE_CREDENTIALS_JSON='{"type": "service_account", ...}'  # raw JSON string
+```
+
+2. Run the tool:
+
+```bash
+python feedback_exporter/export_feedback.py
+```
+
+This will populate the Google Spreadsheet with columns: score, thread URL, input, output, comment, and user name.

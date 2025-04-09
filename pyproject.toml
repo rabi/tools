@@ -9,6 +9,11 @@ dependencies = [
     "transformers==4.50.3",
     "pandas==2.2.3",
     "langchain-text-splitters>=0.3.8",
+    "sqlalchemy>=2.0.40",
+    "psycopg2-binary>=2.9.10",
+    "google-api-python-client>=2.166.0",
+    "google-auth>=2.38.0",
+    "google-auth-oauthlib>=1.2.1",
 ]
 requires-python = "==3.12.*"
 
@@ -26,7 +31,8 @@ py-modules = []
 
 [project.scripts]
 jira_scraper = "jira_scraper.main:command"
+feedback_exporter = "feedback_exporter.export_feedback:main"
 
 [tool.setuptools.packages.find]
-include = ["jira_scraper*"]
+include = ["jira_scraper*", "feedback_exporter*"]
 namespaces = false
