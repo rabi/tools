@@ -44,6 +44,7 @@ class JiraRecord(TypedDict, total=False):
     affects_versions: list[str]
     components: list[str]
 
+
 class JiraScraper:
     """Main class for JIRA scraping and processing."""
 
@@ -105,7 +106,7 @@ class JiraScraper:
             issue for batch in results for issue in batch]
         return all_issues
 
-    def get_jira_records(self, issues: List[Dict]) -> pd.DataFrame:
+    def get_jira_records(self, issues: List[Dict]) -> list[JiraRecord]:
         """Convert Jira API responses to JiraRecords"""
         jira_records: list[JiraRecord] = []
 
@@ -155,9 +156,7 @@ class JiraScraper:
                 "key": issue["key"],
             })
 
-        df = pd.DataFrame(jira_records)
-        df = df.dropna()
-        return df.drop_duplicates(subset=["text"])
+        return jira_records
 
     def get_embedding_dimension(self) -> int:
         """Get embedding dimension for the model."""
@@ -167,7 +166,7 @@ class JiraScraper:
         )
         return len(response.data[0].embedding)
 
-    def process_and_store_embeddings(self, df: pd.DataFrame):
+    def store_jira_records(self, jira_records: list[JiraRecord]) -> None:
         """Process text and store embeddings in database."""
         vector_size = self.get_embedding_dimension()
 
@@ -176,9 +175,8 @@ class JiraScraper:
             vector_size
         )
 
-        for _, row in tqdm(df.iterrows(), total=len(df),
-                           desc="Processing embeddings"):
-            chunks = self.text_processor.split_text(row["text"])
+        for jira_record in tqdm(jira_records, desc="Processing embeddings"):
+            chunks = self.text_processor.split_text(jira_record["text"])
 
             for chunk in chunks:
                 embedding = self.llm_client.embeddings.create(
@@ -186,11 +184,12 @@ class JiraScraper:
                     input=chunk
                 ).data[0].embedding
 
+                chuncked_jira_record = JiraRecord(**jira_record)
+                chuncked_jira_record["text"] = chunk
+
                 point = self.db_manager.build_record(
                     record_id=str(uuid.uuid4()),
-                    payload={"url": row["url"],
-                             "text": row["text"],
-                             "kind": row["kind"]},
+                    payload=dict(chuncked_jira_record),
                     vector=embedding,
                 )
 
@@ -199,7 +198,24 @@ class JiraScraper:
                     [point]
                 )
 
-    def run(self, backup_path: str = "jira_all_bugs.pickle"):
+    def cleanup_jira_records(
+            self, jira_records: list[JiraRecord],
+            backup_path: str = "jira_all_bugs.pickle") -> list[JiraRecord]:
+        """Cleanup Jira Records"""
+        df = pd.DataFrame(jira_records)
+        print("Jira records stats BEFORE cleanup:")
+        print(df.info())
+        df = df.dropna()
+        df = df.drop_duplicates(subset=["text"])
+        print("Jira records stats AFTER cleanup:")
+        print(df.info())
+
+        print(f"Saving backup to: {backup_path}")
+        df.to_pickle(backup_path)
+
+        return [JiraRecord(**row) for row in df.to_dict(orient='records')]
+
+    def run(self):
         """Main execution method."""
         query = self.build_query(self.config["jira_projects"])
         issues = self.fetch_all_issues(query, self.config["max_results"])
@@ -208,14 +224,11 @@ class JiraScraper:
             print("No issues found to process.")
             return
 
-        df = self.get_jira_records(issues)
-        print(df.info())
-
-        # Save backup
-        df.to_pickle(backup_path)
+        jira_records = self.get_jira_records(issues)
+        jira_records = self.cleanup_jira_records(jira_records)
 
         # Process and store embeddings
-        self.process_and_store_embeddings(df)
+        self.store_jira_records(jira_records)
 
         # Print final stats
         stats = self.db_manager.get_collection_stats(
