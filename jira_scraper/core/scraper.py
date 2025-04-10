@@ -70,11 +70,12 @@ class JiraScraper:
     def fetch_all_issues(self, query: str, max_results: int) -> List[Dict]:
         """Fetch all issues matching the query."""
         # Get initial batch to determine total count
-        initial_issues = self.jira_client.get_issues(query, max_results)
+        initial_issues, total = self.jira_client.get_initial_issues(
+            query, max_results)
+
         if not initial_issues:
             return []
 
-        total = len(initial_issues)
         print(f"{total} items found for query {query}")
 
         # Fetch remaining issues in parallel
@@ -82,7 +83,7 @@ class JiraScraper:
             results = pool.starmap(
                 self.jira_client.get_issues,
                 [(query, max_results, page) for page in range(
-                    max_results, total, max_results)]
+                    1000, total, 1000)]
             )
 
         # Combine all issues
@@ -165,7 +166,6 @@ class JiraScraper:
         """Main execution method."""
         query = self.build_query(self.config["jira_projects"])
         issues = self.fetch_all_issues(query, self.config["max_results"])
-
         if not issues:
             print("No issues found to process.")
             return
