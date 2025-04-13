@@ -37,8 +37,7 @@ class JiraRecord(TypedDict, total=False):
     """
     kind: str
     text: str
-    id: str
-    key: str
+    jira_id: str
     url: str
     fix_versions: list[str]
     affects_versions: list[str]
@@ -132,7 +131,7 @@ class JiraScraper:
             for text_field_name in ["summary", "description"]:
                 jira_records.append({
                     "text": issue["fields"][text_field_name],
-                    "id": issue["id"],
+                    "jira_id": issue["id"],
                     "affects_versions": versions,
                     "components": components,
                     "kind": text_field_name,
@@ -148,7 +147,7 @@ class JiraScraper:
 
             jira_records.append({
                 "text": comment_text,
-                "id": issue["id"],
+                "jira_id": issue["id"],
                 "affects_versions": versions,
                 "components": components,
                 "kind": "comment",
