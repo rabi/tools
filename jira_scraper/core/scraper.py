@@ -25,8 +25,6 @@ class JiraRecord(TypedDict, total=False):
         text: The content extracted from a specific field (e.g., summary,
             description, comment).
         id: A unique identifier assigned to the ticket (e.g., 16238715).
-        key: The ticket's key, combining the project name and ticket number
-            (e.g., OSPRH-1234).
         url: The URL pointing directly to the Jira ticket
             (e.g., http://issues.redhat.com/OSPRH-1234).
         kind: Specifies the type of field the data originates from (e.g.,
@@ -37,8 +35,7 @@ class JiraRecord(TypedDict, total=False):
     """
     kind: str
     text: str
-    id: str
-    key: str
+    jira_id: str
     url: str
     fix_versions: list[str]
     affects_versions: list[str]
@@ -132,13 +129,12 @@ class JiraScraper:
             for text_field_name in ["summary", "description"]:
                 jira_records.append({
                     "text": issue["fields"][text_field_name],
-                    "id": issue["id"],
+                    "jira_id": issue["id"],
                     "affects_versions": versions,
                     "components": components,
                     "kind": text_field_name,
                     "fix_versions": fix_versions,
                     "url": jira_url,
-                    "key": issue["key"],
                 })
 
             # Concatenate all comments for a jira
@@ -148,13 +144,12 @@ class JiraScraper:
 
             jira_records.append({
                 "text": comment_text,
-                "id": issue["id"],
+                "jira_id": issue["id"],
                 "affects_versions": versions,
                 "components": components,
                 "kind": "comment",
                 "fix_versions": fix_versions,
                 "url": jira_url,
-                "key": issue["key"],
             })
 
         return jira_records
