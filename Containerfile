@@ -9,6 +9,7 @@ RUN chown -R tools:tools /app
 
 COPY feedback_exporter feedback_exporter
 COPY jira_scraper jira_scraper
+COPY evaluation evaluation
 COPY pdm.lock pyproject.toml Makefile .
 RUN make install-pdm install-global
 
