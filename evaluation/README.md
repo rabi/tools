@@ -44,14 +44,14 @@ python evaluation.py \
 
 The script expects a CSV file with at least the following columns:
 - `user_prompt`: The query text to send to the chatbot
-- `comments`: Expected response text (for semantic similarity)
+- `ground_truth`: Expected response text (for semantic similarity)
 - `url`: Expected URL that should be retrieved (for Hit@K metric)
 
 ## Output
 
 The script produces a CSV file with the original data plus:
 - `chatbot_response`: The response from the chatbot
-- `similarity_score`: Semantic similarity score (if enabled)
+- `similarity_score`: Semantic similarity score based on cosine distance (if enabled)
 - `hit_at_k`: Whether the expected URL was in the top K results (if enabled)
 
 The script also prints summary metrics:
