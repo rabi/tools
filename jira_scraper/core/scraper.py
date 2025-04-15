@@ -3,8 +3,8 @@
 import uuid
 import logging
 import multiprocessing as mp
-from datetime import datetime, timedelta
 from typing import List, Dict, TypedDict
+from datetime import datetime
 
 import pandas as pd
 from tqdm import tqdm
@@ -67,11 +67,12 @@ class JiraScraper:
             api_key=config["llm_api_key"],
         )
 
-    def build_query(self, projects: List[str], jira_year_offset: int = 0) -> str:
+    def build_query(self, projects: List[str], date_cutoff: datetime) -> str:
         """Build JQL query from project dictionary.
 
         Args:
             projects_list: List of project names.
+            date_cutoff: Only issues created after this date (inclusive) will be used.
 
         Returns:
             JQL query string with appropriate filters
@@ -79,11 +80,9 @@ class JiraScraper:
         projects_str = " OR ".join([f"project={e}" for e in projects])
         query = f"({projects_str}) AND resolution not in (\"Not a Bug\", \"Won\'t Do\")"
 
-        # N years ago from now
-        if jira_year_offset:
-            two_years_ago = datetime.now() - timedelta(days=365 * jira_year_offset)
-            date_filter = f'created >= "{two_years_ago.strftime("%Y-%m-%d")}"'
-            query = f"{query} AND {date_filter}"
+        # Apply date cutoff
+        date_filter = f'created >= "{date_cutoff.strftime("%Y-%m-%d")}"'
+        query = f"{query} AND {date_filter}"
 
         return query
 
@@ -222,7 +221,7 @@ class JiraScraper:
 
     def run(self):
         """Main execution method."""
-        query = self.build_query(self.config["jira_projects"], self.config["jira_year_offset"])
+        query = self.build_query(self.config["jira_projects"], self.config["date_cutoff"])
         issues = self.fetch_all_issues(query, self.config["max_results"])
         if not issues:
             LOG.error("No issues found to process.")

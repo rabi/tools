@@ -1,5 +1,6 @@
 """Main module for jira scraper."""
 import logging
+from datetime import datetime
 
 from argparse import ArgumentParser
 from jira_scraper.common import constants
@@ -35,13 +36,12 @@ def command():
                         default=constants.COLLECTION_NAME)
     parser.add_argument("--scraper-processes", type=int,
                         default=constants.DEFAULT_NUM_SCRAPER_PROCESSES)
-    parser.add_argument("--jira_year_offset", type=int,
-                        default=constants.JIRA_YEAR_OFFSET,
+    parser.add_argument("--date_cutoff", type=datetime.fromisoformat,
+                        default=datetime.fromisoformat(constants.DEFAULT_DATE_CUTOFF),
                         help=(
-                            "How old in years should be the oldest JIRA item pulled "
-                            "relative to the current date. Value of 0 will include "
-                            "all items regardless of date."
-                            )
+                            "No issues from before this date will be used. "
+                            "Date must follow ISO format 'YYYY-MM-DD'"
+                        )
     )
     args = parser.parse_args()
 
@@ -57,7 +57,7 @@ def command():
         "embedding_model": args.embedding_model,
         "jira_projects": args.jira_projects,
         "db_collection_name": args.db_collection_name,
-        "jira_year_offset": args.jira_year_offset,
+        "date_cutoff": args.date_cutoff,
         "scraper_processes": args.scraper_processes,
     }
 
