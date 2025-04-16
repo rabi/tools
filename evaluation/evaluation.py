@@ -8,7 +8,11 @@ from tqdm import tqdm
 from openai import AsyncOpenAI
 
 
-async def call_chatbot_api(client, url, prompt, similarity_threshold, timeout):
+async def call_chatbot_api(client: httpx.AsyncClient,
+                           url: str,
+                           prompt: str,
+                           similarity_threshold: float,
+                           timeout: int):
     payload = {
         "content": prompt,
         "similarity_threshold": similarity_threshold,
@@ -31,8 +35,10 @@ def hit_at_k(pred_urls: list, true_url: str, k: int) -> int:
     return int(true_url in top_k)
 
 
-async def calculate_semantic_similarity(llm: AsyncOpenAI, model_name: str,
-                                        text1: str, text2: str) -> float:
+async def calculate_cosine_similarity(llm: AsyncOpenAI,
+                                      model_name: str,
+                                      text1: str,
+                                      text2: str) -> float:
 
     emb1 = await llm.embeddings.create(
         model=model_name,
@@ -57,7 +63,12 @@ async def calculate_semantic_similarity(llm: AsyncOpenAI, model_name: str,
         return float(score)
 
 
-async def process_row(client, llm, idx, row, args, model_name):
+async def process_row(client: httpx.AsyncClient,
+                      llm: AsyncOpenAI,
+                      idx: int,
+                      row: pd.Series,
+                      args: argparse.Namespace,
+                      model_name: str) -> dict:
     # Call the API
     out = await call_chatbot_api(client,
                                  args.chatbot_api_url,
@@ -75,12 +86,12 @@ async def process_row(client, llm, idx, row, args, model_name):
     if out:
         result["response"] = out['response']
 
-        if args.semantic_similarity and 'comments' in row and row['comments']:
-            similarity = await calculate_semantic_similarity(
+        if args.semantic_similarity and 'ground_truth' in row and row['ground_truth']:
+            similarity = await calculate_cosine_similarity(
                 llm,
                 model_name,
                 out['response'],
-                row['comments']
+                row['ground_truth']
             )
             result["similarity_score"] = similarity
 
