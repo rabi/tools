@@ -103,7 +103,7 @@ async def process_row(client: httpx.AsyncClient,
     return result
 
 
-async def main():
+async def main_async():
     parser = argparse.ArgumentParser(
         description="Run the Chatbot evaluation")
 
@@ -266,6 +266,8 @@ async def main():
         df.to_csv(args.output, index=False)
         print(f"The results have been saved to the file {args.output}")
 
+def main():
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
