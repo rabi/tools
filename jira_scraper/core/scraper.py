@@ -21,18 +21,20 @@ LOG.setLevel(logging.INFO)
 class JiraRecord(TypedDict, total=False):
     """Represents a record extracted from a Jira ticket.
 
-    This dictionary contains information from a single Jira ticket field.
-    It can be used to store details about fields such as comments,
-    descriptions, and other.
+    This dictionary contains information from a single Jira ticket. The
+    dictionary stores information from summary, description, comments,
+    fix_versions, affects_versions and components field.
 
     Attributes:
         text: The content extracted from a specific field (e.g., summary,
-            description, comment).
-        id: A unique identifier assigned to the ticket (e.g., 16238715).
+            description, comment). Or entire ticket if kind contains
+            "full-ticket" value.
+        kind: Specifies the type of field the data originates from (e.g.,
+            summary, description, comment). Or "full-ticket" value if text field
+            contains the entire ticket.
+        jira_id: A unique identifier assigned to the ticket (e.g., 16238715).
         url: The URL pointing directly to the Jira ticket
             (e.g., http://issues.redhat.com/OSPRH-1234).
-        kind: Specifies the type of field the data originates from (e.g.,
-            summary, description, comment).
         components: A list of components impacted by the ticket.
         fix_versions: A value from Fix Versions
         affects_versions: A value from Affects Versions
@@ -44,6 +46,13 @@ class JiraRecord(TypedDict, total=False):
     fix_versions: list[str]
     affects_versions: list[str]
     components: list[str]
+
+    # TODO(lpiwowar): Experimental fields that are not stored in the database
+    # Remove once we decide what values we are going to use to calculate the
+    # embeddings.
+    summary: str
+    description: str
+    comments: str
 
 
 class JiraScraper:
@@ -71,7 +80,7 @@ class JiraScraper:
         """Build JQL query from project dictionary.
 
         Args:
-            projects_list: List of project names.
+            projects: List of project names.
             date_cutoff: Only issues created after this date (inclusive) will be used.
 
         Returns:
@@ -131,31 +140,39 @@ class JiraScraper:
                 for version in issue["fields"]["versions"]
             ]
 
-            for text_field_name in ["summary", "description"]:
-                jira_records.append({
-                    "text": issue["fields"][text_field_name],
-                    "jira_id": issue["id"],
-                    "affects_versions": versions,
-                    "components": components,
-                    "kind": text_field_name,
-                    "fix_versions": fix_versions,
-                    "url": jira_url,
-                })
+            comment_text = ""
+            for idx, comment in enumerate(issue["fields"]["comment"]["comments"]):
+                comment_text += (f"### Comment no.{idx}\n"
+                                 f"{comment['body']}\n\n")
 
             # Concatenate all comments for a jira
-            comment_text = ""
-            for comment in issue["fields"]["comment"]["comments"]:
-                comment_text += f"\n\n{comment['body']}"
+            jira_text_format = """
+            Summary: {summary}
+            Description: {description}
+            Comments: {comments}
+            """
 
             jira_records.append({
-                "text": comment_text,
+                "kind": "full-ticket",
                 "jira_id": issue["id"],
                 "affects_versions": versions,
                 "components": components,
-                "kind": "comment",
                 "fix_versions": fix_versions,
                 "url": jira_url,
+                "text": jira_text_format.format(
+                    summary=issue["fields"]["summary"],
+                    description=issue["fields"]["description"],
+                    comments=comment_text
+                ),
+
+                # TODO(lpiwowar): Experimental fields that are not stored in the database
+                # Remove once we decide what values we are going to use to calculate the
+                # embeddings.
+                "summary": issue["fields"]["summary"],
+                "description": issue["fields"]["description"],
+                "comments": comment_text,
             })
+
 
         return jira_records
 
@@ -177,27 +194,35 @@ class JiraScraper:
         )
 
         for jira_record in tqdm(jira_records, desc="Processing embeddings"):
-            chunks = self.text_processor.split_text(jira_record["text"])
 
+            chunks: list[str] = []
+            for jira_field in ["summary", "description", "comments"]:
+                chunks += self.text_processor.split_text(jira_record[jira_field])
+
+            embeddings: list[list[float]] = []
             for chunk in chunks:
-                embedding = self.llm_client.embeddings.create(
+                embeddings.append(self.llm_client.embeddings.create(
                     model=self.config["embedding_model"],
                     input=chunk
-                ).data[0].embedding
+                ).data[0].embedding)
 
-                chuncked_jira_record = JiraRecord(**jira_record)
-                chuncked_jira_record["text"] = chunk
+            # TODO(lpiwowar): Experimental fields that are not stored in the database
+            # Remove once we decide what values we are going to use to calculate the
+            # embeddings.
+            del jira_record["description"]
+            del jira_record["comments"]
+            del jira_record["summary"]
 
-                point = self.db_manager.build_record(
-                    record_id=str(uuid.uuid4()),
-                    payload=dict(chuncked_jira_record),
-                    vector=embedding,
-                )
+            point = self.db_manager.build_record(
+                record_id=str(uuid.uuid4()),
+                payload=dict(jira_record),
+                vector=embeddings,
+            )
 
-                self.db_manager.upsert_data(
-                    self.config["db_collection_name"],
-                    [point]
-                )
+            self.db_manager.upsert_data(
+                self.config["db_collection_name"],
+                [point]
+            )
 
     def cleanup_jira_records(
             self, jira_records: list[JiraRecord],

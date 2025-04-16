@@ -36,11 +36,17 @@ class QdrantVectorStoreManager(VectorStoreManager):
 
     def recreate_collection(self, collection_name: str, vector_size: int):
         """Recreate the collection with specified parameters."""
-        self.client.recreate_collection(
+        if self.client.collection_exists(collection_name):
+            self.client.delete_collection(collection_name)
+
+        self.client.create_collection(
             collection_name=collection_name,
             vectors_config=models.VectorParams(
                 size=vector_size,
-                distance=models.Distance.COSINE
+                distance=models.Distance.COSINE,
+                multivector_config=models.MultiVectorConfig(
+                    comparator=models.MultiVectorComparator.MAX_SIM,
+                )
             ),
         )
 
