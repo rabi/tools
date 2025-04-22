@@ -23,7 +23,8 @@ def fetch_feedback_data(database_url, app_base_url):
       s."input" AS step_input,
       child."output" AS step_output,
       f."comment",
-      u."identifier" AS user_name
+      u."identifier" AS user_name,
+      t."metadata" AS settings
     FROM
       "Feedback" f
     JOIN
@@ -37,6 +38,8 @@ def fetch_feedback_data(database_url, app_base_url):
     """
 
     df = pd.read_sql_query(query, conn, params=(app_base_url,))
+    df["settings"] = df["settings"].apply(lambda value: value["settings"])
+
     conn.close()
     return df
 
