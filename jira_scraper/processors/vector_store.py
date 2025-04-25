@@ -36,7 +36,7 @@ class QdrantVectorStoreManager(VectorStoreManager):
 
     def recreate_collection(self, collection_name: str, vector_size: int):
         """Recreate the collection with specified parameters."""
-        if self.client.collection_exists(collection_name):
+        if self.check_collection(collection_name):
             self.client.delete_collection(collection_name)
 
         self.client.create_collection(
@@ -49,6 +49,10 @@ class QdrantVectorStoreManager(VectorStoreManager):
                 )
             ),
         )
+
+    def check_collection(self, collection_name) -> bool:
+        """Test presence of collection."""
+        return self.client.collection_exists(collection_name)
 
     def upsert_data(self, collection_name: str,
                     points: List[models.PointStruct]):
