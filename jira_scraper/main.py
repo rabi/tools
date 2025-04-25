@@ -43,6 +43,8 @@ def command():
                             "Date must follow ISO format 'YYYY-MM-DD'"
                         )
     )
+    parser.add_argument("--recreate_collection", type=bool, default=False,
+                        help="Recreate database collection from scratch.")
     args = parser.parse_args()
 
     config_args = {
@@ -59,6 +61,7 @@ def command():
         "db_collection_name": args.db_collection_name,
         "date_cutoff": args.date_cutoff,
         "scraper_processes": args.scraper_processes,
+        "recreate_collection": args.recreate_collection,
     }
 
     scraper = JiraScraper(config_args)

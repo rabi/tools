@@ -91,13 +91,18 @@ class Scraper:
         after it has been created but before storing in vectorDB."""
         raise NotImplementedError
 
-    def store_records(self, records: list) -> None:
+    def store_records(self, records: list, recreate: bool = True) -> None:
         """Process text and store embeddings in database."""
         vector_size = self.get_embedding_dimension()
 
-        self.db_manager.recreate_collection(
-            self.config["db_collection_name"], vector_size
-        )
+        if recreate:
+            self.db_manager.recreate_collection(
+                self.config["db_collection_name"], vector_size
+            )
+        elif not self.db_manager.check_collection(self.config["collection_name"]):
+            LOG.error(
+                "Requested database collection %s does not exist.", self.config["collection_name"])
+            raise IOError
 
         for record in tqdm(records, desc="Processing embeddings"):
             chunks: list[str] = self.get_chunks(record)
@@ -148,7 +153,7 @@ class Scraper:
         records = self.cleanup_records(records)
 
         # Process and store embeddings
-        self.store_records(records)
+        self.store_records(records, self.config["recreate_collection"])
 
         # Print final stats
         stats = self.db_manager.get_collection_stats(self.config["db_collection_name"])
