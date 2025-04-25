@@ -294,20 +294,3 @@ class JiraScraper(Scraper):
         df.to_pickle(backup_path)
 
         return [JiraRecord(**row) for row in df.to_dict(orient="records")]
-
-    def run(self):
-        """Main execution method."""
-        documents = self.get_documents()
-        if not documents:
-            LOG.error("No issues found to process.")
-            return
-
-        records = self.get_records(documents)
-        records = self.cleanup_records(records)
-
-        # Process and store embeddings
-        self.store_records(records)
-
-        # Print final stats
-        stats = self.db_manager.get_collection_stats(self.config["db_collection_name"])
-        LOG.info("Number of records: %s", stats.points_count)
