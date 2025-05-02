@@ -18,6 +18,8 @@ dependencies = [
     "urllib3>=2.4.0",
     "bs4>=0.0.2",
     "requests-kerberos>=0.15.0",
+    "browser-cookie3>=0.19.1",
+    "httpx-gssapi>=0.2.0",
 ]
 requires-python = "==3.12.*"
 
@@ -35,6 +37,7 @@ py-modules = []
 [project.scripts]
 jira_scraper = "data_scraper.main:jira_scraper"
 errata_scraper = "data_scraper.main:errata_scraper"
+ci_logs_scraper = "data_scraper.main:ci_logs_scraper"
 feedback_exporter = "feedback_exporter.export_feedback:main"
 evaluation = "evaluation.evaluation:main"
 osp_doc_scraper = "data_scraper.main:osp_doc_scraper"
