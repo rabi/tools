@@ -1,12 +1,14 @@
+"""Feedback export module."""
 import os
 import json
+from urllib.parse import urlparse
+
 import pandas as pd
 import psycopg2
-from urllib.parse import urlparse
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-def fetch_feedback_data(database_url, app_base_url):
+def _fetch_feedback_data(database_url, app_base_url):
     parsed = urlparse(database_url)
     conn = psycopg2.connect(
         dbname=parsed.path.lstrip('/'),
@@ -43,7 +45,7 @@ def fetch_feedback_data(database_url, app_base_url):
     conn.close()
     return df
 
-def write_to_google_sheet(df, spreadsheet_id, credentials_json):
+def _write_to_google_sheet(df, spreadsheet_id, credentials_json):
     creds_dict = json.loads(credentials_json)
     credentials = Credentials.from_service_account_info(creds_dict)
     service = build('sheets', 'v4', credentials=credentials)
@@ -51,14 +53,17 @@ def write_to_google_sheet(df, spreadsheet_id, credentials_json):
     sheet_data = [df.columns.tolist()] + df.astype(str).values.tolist()
     body = {'values': sheet_data}
 
+    # pylint: disable=no-member
     service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
         range='A1',
         valueInputOption='RAW',
         body=body
     ).execute()
+    # pylint: enable=no-member
 
 def main():
+    """Entry point for feedback exporter."""
     database_url = os.getenv("DATABASE_URL")
     app_base_url = os.getenv("APP_BASE_URL", "http://app.com/thread/")
     spreadsheet_id = os.getenv("GOOGLE_SPREADSHEET_ID")
@@ -67,8 +72,8 @@ def main():
     if not all([database_url, spreadsheet_id, credentials_json]):
         raise EnvironmentError("Missing one or more required environment variables.")
 
-    df = fetch_feedback_data(database_url, app_base_url)
-    write_to_google_sheet(df, spreadsheet_id, credentials_json)
+    df = _fetch_feedback_data(database_url, app_base_url)
+    _write_to_google_sheet(df, spreadsheet_id, credentials_json)
 
 if __name__ == "__main__":
     main()
