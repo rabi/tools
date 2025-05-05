@@ -1,3 +1,4 @@
+"""Chatbot evaluation module"""
 import asyncio
 import argparse
 import pandas as pd
@@ -8,7 +9,7 @@ from tqdm import tqdm
 from openai import AsyncOpenAI
 
 
-async def call_chatbot_api(client: httpx.AsyncClient,
+async def _call_chatbot_api(client: httpx.AsyncClient, # pylint: disable=too-many-arguments
                            url: str,
                            prompt: str,
                            similarity_threshold: float,
@@ -29,7 +30,7 @@ async def call_chatbot_api(client: httpx.AsyncClient,
         return None
 
 
-def hit_at_k(pred_urls: list, true_url: str, k: int) -> int:
+def _hit_at_k(pred_urls: list, true_url: str, k: int) -> int:
     """
     Returns 1 if the ground truth URL is in the top K predicted URLs, else 0.
     """
@@ -37,7 +38,7 @@ def hit_at_k(pred_urls: list, true_url: str, k: int) -> int:
     return int(true_url in top_k)
 
 
-async def calculate_cosine_similarity(llm: AsyncOpenAI,
+async def _calculate_cosine_similarity(llm: AsyncOpenAI,
                                       model_name: str,
                                       text1: str,
                                       text2: str) -> float:
@@ -60,19 +61,19 @@ async def calculate_cosine_similarity(llm: AsyncOpenAI,
 
     if norm1 == 0.0 or norm2 == 0.0:
         return 0.0
-    else:
-        score = np.dot(vec1, vec2) / (norm1 * norm2)
-        return float(score)
+
+    score = np.dot(vec1, vec2) / (norm1 * norm2)
+    return float(score)
 
 
-async def process_row(client: httpx.AsyncClient,
+async def _process_row(client: httpx.AsyncClient, # pylint: disable=too-many-arguments
                       llm: AsyncOpenAI,
                       idx: int,
                       row: pd.Series,
                       args: argparse.Namespace,
                       model_name: str) -> dict:
     # Call the API
-    out = await call_chatbot_api(client,
+    out = await _call_chatbot_api(client,
                                  args.chatbot_api_url,
                                  row['user_prompt'],
                                  args.similarity_threshold,
@@ -90,7 +91,7 @@ async def process_row(client: httpx.AsyncClient,
         result["response"] = out['response']
 
         if args.semantic_similarity and 'ground_truth' in row and row['ground_truth']:
-            similarity = await calculate_cosine_similarity(
+            similarity = await _calculate_cosine_similarity(
                 llm,
                 model_name,
                 out['response'],
@@ -100,13 +101,13 @@ async def process_row(client: httpx.AsyncClient,
 
         if args.retrieval_metric and 'url' in row and row['url']:
             if 'urls' in out:
-                accuracy = hit_at_k(out['urls'], row['url'], k=args.num_k)
+                accuracy = _hit_at_k(out['urls'], row['url'], k=args.num_k)
                 result["hit_at_k"] = accuracy
 
     return result
 
 
-async def main_async():
+async def _main_async(): #pylint: disable=too-many-statements, too-many-locals
     parser = argparse.ArgumentParser(
         description="Run the Chatbot evaluation")
 
@@ -230,7 +231,7 @@ async def main_async():
         async with httpx.AsyncClient() as client:
             tasks = []
             for idx, row in df.iterrows():
-                task = process_row(client, llm, idx, row, args, model_name)
+                task = _process_row(client, llm, idx, row, args, model_name)
                 tasks.append(task)
 
             semaphore = asyncio.Semaphore(args.concurrency_limit)
@@ -269,7 +270,7 @@ async def main_async():
             avg_hit_score = sum(avg_hit_at_k)/len(avg_hit_at_k)
             print(f"Average Hit @ {args.num_k} score: {avg_hit_score}")
 
-    except Exception as e:
+    except Exception as e: #pylint: disable=broad-exception-caught
         # Catch any exception
         print(f"An unexpected error occurred: {e}")
     finally:
@@ -278,7 +279,8 @@ async def main_async():
         print(f"The results have been saved to the file {args.output}")
 
 def main():
-    asyncio.run(main_async())
+    """Entry point for evaluation module."""
+    asyncio.run(_main_async())
 
 if __name__ == "__main__":
     main()
