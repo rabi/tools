@@ -5,7 +5,6 @@ import requests
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.INFO)
 
-
 # pylint: disable=too-few-public-methods
 class SolutionsProvider:
     """Provider for Solutions"""
