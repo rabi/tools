@@ -46,7 +46,7 @@ def jira_scraper():
                             "Date must follow ISO format 'YYYY-MM-DD'"
                         )
     )
-    parser.add_argument("--recreate_collection", type=bool, default=False,
+    parser.add_argument("--recreate_collection", action='store_true', default=False,
                         help="Recreate database collection from scratch.")
     args = parser.parse_args()
 
@@ -95,7 +95,7 @@ def osp_doc_scraper():
     parser.add_argument("--db_collection_name", type=str,
                         default=constants.OSP_DOCS_COLLECTION_NAME)
     parser.add_argument("--osp_version", type=str, default="18.0")
-    parser.add_argument("--recreate_collection", type=bool, default=True,
+    parser.add_argument("--recreate_collection", action='store_true', default=False,
                         help="Recreate database collection from scratch.")
     parser.add_argument(
         "--rhoso_docs_path", type=str, default="",
@@ -154,7 +154,7 @@ def errata_scraper() -> None:
                             "Date must follow ISO format 'YYYY-MM-DD'"
                         )
     )
-    parser.add_argument("--recreate_collection", type=bool, default=True,
+    parser.add_argument("--recreate_collection", action='store_true', default=False,
                         help="Recreate database collection from scratch.")
     args = parser.parse_args()
 
@@ -275,7 +275,7 @@ def solutions_scraper() -> None:
                         default=constants.SOLUTIONS_COLLECTION_NAME)
     parser.add_argument("--product_name", type=str,
                         default=constants.SOLUTIONS_PRODUCT_NAME)
-    parser.add_argument("--recreate_collection", type=bool, default=True,
+    parser.add_argument("--recreate_collection", action='store_true', default=False,
                         help="Recreate database collection from scratch.")
     args = parser.parse_args()
 
