@@ -35,8 +35,10 @@ class QdrantVectorStoreManager(VectorStoreManager):
         self.client = QdrantClient(client_url, api_key=api_key, timeout=timeout)
 
     def recreate_collection(self, collection_name: str, vector_size: int):
-        """Recreate the collection with specified parameters."""
+        """Recreate the collection with specified parameters, preserving a snapshot first."""
+
         if self.check_collection(collection_name):
+            self.client.create_snapshot(collection_name=collection_name)
             self.client.delete_collection(collection_name)
 
         self.client.create_collection(
