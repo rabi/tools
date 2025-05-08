@@ -107,6 +107,12 @@ class Scraper:
             raise IOError
 
         for record in tqdm(records, desc="Processing embeddings"):
+            if record['url']:
+                record_id = str(uuid.uuid5(uuid.NAMESPACE_URL, record["url"]))
+            else:
+                LOG.error("Missing required URL field")
+                continue
+
             chunks: list[str] = self.get_chunks(record)
 
             embeddings: list[list[float]] = []
@@ -121,7 +127,7 @@ class Scraper:
 
             self.record_postprocessing(record)
             point = self.db_manager.build_record(
-                record_id=str(uuid.uuid4()),
+                record_id=record_id,
                 payload=dict(record),
                 vector=embeddings,
             )
