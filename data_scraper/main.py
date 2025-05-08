@@ -8,6 +8,7 @@ from data_scraper.core.scraper import JiraScraper, OSPDocScraper
 from data_scraper.core.errata_scraper import ErrataScraper
 from data_scraper.core.ci_logs_scraper import CILogsScraper
 from data_scraper.processors.ci_logs_provider  import TestOperatorReportsProvider
+from data_scraper.core.solutions_scraper import SolutionsScraper
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
@@ -181,8 +182,6 @@ def errata_scraper() -> None:
     scraper.run()
 
 
-
-
 def ci_logs_scraper() -> None:
     """Entry point for command line execution."""
     parser = ArgumentParser("ci_logs_scraper")
@@ -249,4 +248,51 @@ def ci_logs_scraper() -> None:
 
     # when json is ready, proceed with tracebacks and store them to QdrantDB
     scraper = CILogsScraper(config_args)
+    scraper.run()
+
+
+def solutions_scraper() -> None:
+    """Entry point for command line execution."""
+    parser = ArgumentParser("solutions_scraper")
+
+    # Required arguments
+    parser.add_argument("--database_client_url", type=str, required=True)
+    parser.add_argument("--llm_server_url", type=str, required=True)
+    parser.add_argument("--llm_api_key", type=str, required=True)
+    parser.add_argument("--database_api_key", type=str, required=True)
+    parser.add_argument("--solutions-token", type=str, required=True)
+
+    # Optional arguments
+    parser.add_argument("--solutions-url", type=str,
+                        default=constants.DEFAULT_SOLUTIONS_PUBLIC_URL)
+    parser.add_argument("--max_results", type=int,
+                        default=constants.SOLUTIONS_MAX_RESULTS)
+    parser.add_argument("--chunk_size", type=int,
+                        default=constants.DEFAULT_CHUNK_SIZE)
+    parser.add_argument("--embedding_model", type=str,
+                        default=constants.DEFAULT_EMBEDDING_MODEL)
+    parser.add_argument("--db_collection_name", type=str,
+                        default=constants.SOLUTIONS_COLLECTION_NAME)
+    parser.add_argument("--product_name", type=str,
+                        default=constants.SOLUTIONS_PRODUCT_NAME)
+    parser.add_argument("--recreate_collection", type=bool, default=True,
+                        help="Recreate database collection from scratch.")
+    args = parser.parse_args()
+
+    config_args = {
+        "database_client_url": args.database_client_url,
+        "llm_server_url": args.llm_server_url,
+        "llm_api_key": args.llm_api_key,
+        "database_api_key": args.database_api_key,
+        "chunk_size": args.chunk_size,
+        "embedding_model": args.embedding_model,
+        "db_collection_name": args.db_collection_name,
+        "solutions_url": args.solutions_url,
+        "solutions_token": args.solutions_token,
+        "product_name": args.product_name,
+        "max_results": args.max_results,
+        "recreate_collection": args.recreate_collection,
+    }
+
+    scraper = SolutionsScraper(config_args)
     scraper.run()
