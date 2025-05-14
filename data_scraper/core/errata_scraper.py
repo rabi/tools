@@ -149,7 +149,7 @@ class ErrataScraper(Scraper):
         pass
 
     def cleanup_records(
-        self, records: list, backup_path: str = "errata_all_data.pickle"
+        self, records: list, backup: bool, backup_path: str
     ) -> list:
         df = pd.DataFrame(records)
 
@@ -162,7 +162,8 @@ class ErrataScraper(Scraper):
         LOG.info("Records stats AFTER cleanup:")
         LOG.info(df.info())
 
-        LOG.info("Saving backup to: %s", backup_path)
-        df.to_pickle(backup_path)
+        if backup:
+            LOG.info("Saving backup to: %s", backup_path)
+            df.to_pickle(backup_path)
 
         return [ErrataRecord(**row) for row in df.to_dict(orient="records")]

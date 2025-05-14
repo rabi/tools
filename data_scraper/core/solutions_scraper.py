@@ -76,7 +76,7 @@ class SolutionsScraper(Scraper):
         pass
 
     def cleanup_records(
-        self, records: list, backup_path: str = "solutions_all_data.csv"
+        self, records: list, backup: bool, backup_path: str
     ) -> list:
         df = pd.DataFrame(records)
 
@@ -87,7 +87,8 @@ class SolutionsScraper(Scraper):
 
         LOG.info("Records stats AFTER cleanup: %d", df.shape[0])
 
-        LOG.info("Saving backup to: %s", backup_path)
-        df.to_csv(backup_path)
+        if backup:
+            LOG.info("Saving backup to: %s", backup_path)
+            df.to_csv(backup_path)
 
         return [SolutionsRecord(**row) for row in df.to_dict(orient="records")]
