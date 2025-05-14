@@ -191,7 +191,7 @@ def ci_logs_scraper() -> None:
     parser.add_argument("--llm_server_url", type=str, required=True)
     parser.add_argument("--llm_api_key", type=str, required=True)
     parser.add_argument("--database_api_key", type=str, required=True)
-    parser.add_argument("--zuul-url", type=str, required=True)
+    parser.add_argument("--zuul_url", type=str, required=True)
 
     # Optional arguments
     parser.add_argument("--chunk_size", type=int,
