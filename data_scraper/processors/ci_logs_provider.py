@@ -39,6 +39,9 @@ TEST_OPERATOR_PATH = "logs/controller-0/ci-framework-data/tests/test_operator"
 TEMPEST_TEST_PATTERN = "tempest-"
 TOBIKO_TEST_PATTERN = "tobiko-"
 
+# Define output directory for files (using /tmp for OpenShift compatibility)
+OUTPUT_DIR = "/tmp"
+
 async def fetch_with_gssapi(url, params=None, timeout=30.0):
     """
     Fetch content using Kerberos authentication.
@@ -537,10 +540,14 @@ def save_failed_tempest_paths(report_results):
                 if report["has_failures"]:
                     failed_paths.append(report["url"])
 
-    with open("failed_tempest_paths.txt", "w", encoding='utf-8') as f:
+    output_file = os.path.join(OUTPUT_DIR, "failed_tempest_paths.txt")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    with open(output_file, "w", encoding='utf-8') as f:
         for path in failed_paths:
             f.write(f"{path}\n")
 
+    LOG.info("Saved failed tempest paths to %s", output_file)
     return failed_paths
 
 
@@ -550,6 +557,7 @@ def create_tempest_failures_json(report_results, tracebacks_json):
 
     Args:
         report_results: Dictionary mapping build UUIDs to test report information
+        tracebacks_json: Path to save the JSON file
     """
     tempest_failures = []
 
@@ -563,60 +571,18 @@ def create_tempest_failures_json(report_results, tracebacks_json):
                         "failed_tests": report["failed_tests"]
                     })
 
+    if not tracebacks_json.startswith('/'):
+        tracebacks_json = os.path.join(OUTPUT_DIR, tracebacks_json)
+
+    os.makedirs(os.path.dirname(tracebacks_json), exist_ok=True)
+
     with open(tracebacks_json, "w", encoding='utf-8') as f:
         json.dump(tempest_failures, f, indent=2)
 
+    LOG.info("Saved tempest failures to %s", tracebacks_json)
     return tempest_failures
 
-
-# # pylint: disable=too-few-public-methods
-
-# class TestOperatorReportsProvider:
-#     """Class responsible for retrieving and processing test operator reports."""
-
-#     def __init__(self, server_url, tenant, pipeline, tracebacks_json):
-#         """Initialize the TestOperatorReportsProvider with a server URL.
-
-#         Args:
-#             server_url (str): The URL of the Zuul server.
-#         """
-#         self.server_url = server_url
-#         self.tenant = tenant
-#         self.pipeline = pipeline
-#         self.tracebacks_json = tracebacks_json
-
-#     def run(self):
-#         """Entry point of TestOperatorReportsProvider.
-#         """
-#         server_url = self.server_url
-#         tenant = self.tenant
-#         pipeline = self.pipeline
-
-#         client = ZuulClient(server_url)
-
-
-#         builds = client.get_failed_builds_json(tenant, pipeline)
-
-#         if not builds:
-#             LOG.error("%s", "No builds found or authentication failed")
-#             return
-
-#         LOG.info("Found %d failed builds within the last 2 weeks (after %s)",
-#                     len(builds), CUTOFF_TIME.isoformat())
-
-#         with open("failed_builds.json", "w", encoding='utf-8') as f:
-#             json.dump(builds, f, indent=2)
-
-#         report_results = client.find_test_reports(builds)
-
-#         failed_paths = save_failed_tempest_paths(report_results)
-
-#         for path in failed_paths:
-#             print(path)
-
-#         create_tempest_failures_json(report_results,self.tracebacks_json )
-
-
+# pylint: disable=too-few-public-methods
 class TestOperatorReportsProvider:
     """Class responsible for retrieving and processing test operator reports."""
 
@@ -632,11 +598,19 @@ class TestOperatorReportsProvider:
         self.server_url = server_url
         self.tenant = tenant
         self.pipelines = pipelines
-        self.tracebacks_json = tracebacks_json
 
-        if os.path.exists("failed_builds.txt"):
-            os.remove("failed_builds.txt")
-            LOG.info("Deleted existing failed_builds.txt file")
+        if not tracebacks_json.startswith('/'):
+            self.tracebacks_json = os.path.join(OUTPUT_DIR, tracebacks_json)
+        else:
+            self.tracebacks_json = tracebacks_json
+
+        self.failed_builds_file = os.path.join(OUTPUT_DIR, "failed_builds.txt")
+
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+        if os.path.exists(self.failed_builds_file):
+            os.remove(self.failed_builds_file)
+            LOG.info("Deleted existing %s file", self.failed_builds_file)
 
         if os.path.exists(self.tracebacks_json):
             os.remove(self.tracebacks_json)
@@ -665,9 +639,11 @@ class TestOperatorReportsProvider:
 
             all_builds.extend(builds)
 
-            with open("failed_builds.txt", "a", encoding='utf-8') as f:
+            with open(self.failed_builds_file, "a", encoding='utf-8') as f:
                 for build in builds:
                     f.write(f"{build}\n")
+
+            LOG.info("Updated failed builds in %s", self.failed_builds_file)
 
         report_results = client.find_test_reports(all_builds)
 
@@ -676,4 +652,4 @@ class TestOperatorReportsProvider:
         for path in failed_paths:
             print(path)
 
-        create_tempest_failures_json(report_results,self.tracebacks_json)
+        create_tempest_failures_json(report_results, self.tracebacks_json)
