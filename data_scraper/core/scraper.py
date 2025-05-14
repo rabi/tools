@@ -74,6 +74,8 @@ class Scraper:
             organization="",
             api_key=config["llm_api_key"],
         )
+        self.backup = config["backup"]
+        self.backup_path = config["backup_path"]
 
     def get_embedding_dimension(self) -> int:
         """Get embedding dimension for the model."""
@@ -142,7 +144,7 @@ class Scraper:
             self.db_manager.upsert_data(self.config["db_collection_name"], [point])
 
     def cleanup_records(
-        self, records: list, backup_path: str = "all_data.pickle"
+        self, records: list, backup: bool, backup_path: str
     ) -> list:
         """Cleanup Records"""
 
@@ -164,7 +166,7 @@ class Scraper:
             return
 
         records = self.get_records(documents)
-        records = self.cleanup_records(records)
+        records = self.cleanup_records(records, backup=self.backup, backup_path=self.backup_path)
 
         # Process and store embeddings
         self.store_records(records, record_fields_for_key, self.config["recreate_collection"])
@@ -295,7 +297,7 @@ class JiraScraper(Scraper):
         return chunks
 
     def cleanup_records(
-        self, records: list[JiraRecord], backup_path: str = "jira_all_bugs.pickle"
+        self, records: list[JiraRecord], backup: bool, backup_path: str
     ) -> list[JiraRecord]:
         """Cleanup Jira Records"""
         df = pd.DataFrame(records)
@@ -309,8 +311,9 @@ class JiraScraper(Scraper):
         LOG.info("Jira records stats AFTER cleanup:")
         LOG.info(df.info())
 
-        LOG.info("Saving backup to: %s", backup_path)
-        df.to_pickle(backup_path)
+        if backup:
+            LOG.info("Saving backup to: %s", backup_path)
+            df.to_pickle(backup_path)
 
         return [JiraRecord(**row) for row in df.to_dict(orient="records")]
 
@@ -410,7 +413,7 @@ class OSPDocScraper(Scraper):
         return self.text_processor.split_text(record["text"])
 
     def cleanup_records(
-        self, records: list[dict], backup_path: str = "osp_all_docs.pickle"
+        self, records: list[dict], backup: bool, backup_path: str
     ) -> list[dict]:
         """Cleanup document records"""
         df = pd.DataFrame(records)
@@ -424,7 +427,8 @@ class OSPDocScraper(Scraper):
         LOG.info("Document records stats AFTER cleanup:")
         LOG.info(df.info())
 
-        LOG.info("Saving backup to: %s", backup_path)
-        df.to_pickle(backup_path)
+        if backup:
+            LOG.info("Saving backup to: %s", backup_path)
+            df.to_pickle(backup_path)
 
         return [JiraRecord(**row) for row in df.to_dict(orient="records")]
