@@ -5,11 +5,9 @@ import json
 import logging
 import os
 import re
-import urllib.parse
 import warnings
 from datetime import datetime, timedelta
 
-import browser_cookie3
 import httpx
 import requests
 from bs4 import BeautifulSoup
@@ -80,10 +78,6 @@ def make_authenticated_request(url, params=None, timeout=30.0):
         Response content as text, or None if an error occurs
         For JSON responses, the caller will need to parse the text
     """
-    parsed_url = urllib.parse.urlparse(url)
-    domain = parsed_url.netloc
-
-    verify = False
     warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
     # First try with Kerberos
@@ -95,38 +89,7 @@ def make_authenticated_request(url, params=None, timeout=30.0):
 
     except (httpx.HTTPError, httpx.RequestError, httpx.TimeoutException) as e:
         LOG.warning("Kerberos authentication failed due to HTTP error: %s", e)
-        LOG.info("Falling back to browser cookies authentication...")
-
-        # Second try with cookies from browsers
-        cookies = None
-        if 'redhat.com' in domain:
-            try:
-                cookies = browser_cookie3.chrome(domain_name=domain)
-                LOG.info("Using Chrome cookies for domain: %s", domain)
-            except (ImportError, RuntimeError, FileNotFoundError) as chrome_error:
-                LOG.warning("Could not get Chrome cookies: %s", chrome_error)
-
-                try:
-                    cookies = browser_cookie3.firefox(domain_name=domain)
-                    LOG.info("Using Firefox cookies for domain: %s", domain)
-                except (ImportError, RuntimeError, FileNotFoundError) as firefox_error:
-                    LOG.warning("Could not get Firefox cookies: %s", firefox_error)
-
-        try:
-            response = requests.get(
-                url,
-                params=params,
-                cookies=cookies,
-                verify=verify,
-                timeout=timeout
-            )
-            response.raise_for_status()
-            return response.text
-
-        except (requests.RequestException, requests.HTTPError, requests.ConnectionError,
-                requests.Timeout, requests.TooManyRedirects) as request_error:
-            LOG.error("Error fetching from %s: %s", url, request_error)
-            return None
+        return None
 
 class TempestResultsParser:
     """Parser for tempest test HTML reports."""
